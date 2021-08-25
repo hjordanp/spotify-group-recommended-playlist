@@ -1,0 +1,95 @@
+---
+title: "main.py"
+author: "Helene Jordan"
+date: "18/7/2021"
+output: html_document
+---
+
+
+## Libraries 
+
+```{r, results=hide}
+# devtools::install_github('charlie86/spotifyr')
+library('spotifyr')
+library(purrr)
+library(lubridate)
+library(knitr)
+library(plyr)
+library(ggplot2)
+library(tidyr)
+require(sqldf)
+library(stringr)
+library(dplyr)
+library(googlesheets4)
+```
+
+## Authentication Settings
+
+```{r}
+id <- 'a498307d278a4569a85f21de1f78d5d7'
+secret <- '331e4c3def7c4b7a97a0e10e1901cfa9'
+Sys.setenv(SPOTIFY_CLIENT_ID = id)
+Sys.setenv(SPOTIFY_CLIENT_SECRET = secret)
+access_token <- get_spotify_access_token()
+authorization_token <- get_spotify_authorization_code()
+```
+
+## List of users
+
+```{r}
+users <- read.csv('user_id.csv', header = TRUE, sep = ';')
+```
+
+## Song features
+
+Creating an empty dataframe to store all song features
+
+```{r}
+mat = matrix(ncol = 0, nrow = 0)
+  
+# converting the matrix to dataframe
+song_features=data.frame(mat)
+all_playlists=data.frame(mat)
+```
+
+Get all playlists from users and filter the ones that were created by Spotify. 
+
+We erase playlists created by Spotify because some spotify playlists are updated every week/every day, but that doesn't mean that the user added that playlists and those songs to their library at that time, or that he even likes the songs in there anymore. 
+
+```{r}
+for (i in users$user_url)     {
+  
+  # get playlists for each user
+  user_playlists <- get_user_playlists(i,limit = 50)
+  user_playlists$initial_user <- i
+  all_playlists <- rbind(all_playlists, user_playlists)
+  
+}
+
+all_playlists <- all_playlists %>% 
+  dplyr::filter(owner.display_name != 'Spotify')
+```
+
+```{r}
+  # get song features from playlists
+for (i in all_playlists$id)   {
+    tracks <- get_playlist_audio_features(playlist_uris=i)
+    song_features <- rbind(song_features, tracks)
+}
+
+```
+
+
+
+
+```{r}
+test <- song_features %>%
+  select(playlist_id, danceability, energy, key, loudness, mode, speechiness, acousticness, instrumentalness, liveness, valence, tempo, track.id, time_signature, added_at, track.popularity)
+
+all_playlists <- all_playlists %>%
+  select(id, tracks.total, initial_user)
+
+all_data <- merge(x = all_playlists, y = test, by.x = "id", by.y = "playlist_id", all.x = TRUE)
+```
+
+
