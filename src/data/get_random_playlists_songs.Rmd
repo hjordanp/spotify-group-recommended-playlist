@@ -1,0 +1,71 @@
+---
+title: "get_test_data"
+author: "Helene Jordan"
+date: "29/08/2021"
+output: html_document
+---
+
+## Libraries 
+
+```{r, results=hide}
+# devtools::install_github('charlie86/spotifyr')
+library('spotifyr')
+library(purrr)
+library(lubridate)
+library(knitr)
+library(plyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(dplyr)
+```
+
+## Authentication Settings
+
+```{r}
+id <- 'a498307d278a4569a85f21de1f78d5d7'
+secret <- '331e4c3def7c4b7a97a0e10e1901cfa9'
+Sys.setenv(SPOTIFY_CLIENT_ID = id)
+Sys.setenv(SPOTIFY_CLIENT_SECRET = secret)
+access_token <- get_spotify_access_token()
+authorization_token <- get_spotify_authorization_code()
+```
+
+## List of users
+
+```{r}
+test_playlists <- read.csv('../../data/external/all_genre_playlists.csv', header = TRUE, sep = ',')
+```
+
+## Song features
+
+Creating an empty dataframe to store all song features
+
+```{r}
+mat = matrix(ncol = 0, nrow = 0)
+  
+# converting the matrix to dataframe
+song_features=data.frame(mat)
+all_playlists=data.frame(mat)
+user_playlists=data.frame(mat)
+tracks=data.frame(mat)
+```
+
+```{r}
+for (i in test_playlists$playlist.id)     {
+  
+      tracks <- get_playlist_audio_features(playlist_uris=i)
+      song_features <- rbind(song_features, tracks)
+      
+}
+```
+
+```{r}
+filtered_songs <- song_features %>%
+  select(playlist_id, playlist_name, danceability, energy, speechiness, acousticness, instrumentalness, liveness, valence, track.id, track.name)
+```
+
+```{r}
+write.csv(filtered_songs, '../../data/raw/random_playlists_songs.csv')
+```
+
