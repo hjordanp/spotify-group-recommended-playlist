@@ -63,6 +63,8 @@ for (i in test_playlists$playlist.id)     {
 ```{r}
 filtered_songs <- song_features %>%
   select(playlist_id, playlist_name, danceability, energy, speechiness, acousticness, instrumentalness, liveness, valence, track.id, track.name)
+filtered_songs <- filtered_songs[complete.cases(filtered_songs), ] 
+
 ```
 
 ```{r}
