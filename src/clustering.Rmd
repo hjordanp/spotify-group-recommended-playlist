@@ -14,10 +14,8 @@ library(knitr)
 library(plyr)
 library(ggplot2)
 library(tidyr)
-require(sqldf)
 library(stringr)
 library(dplyr)
-library(googlesheets4)
 library(stats)
 library(factoextra)
 
@@ -41,52 +39,74 @@ authorization_token <- get_spotify_authorization_code()
 ```
 
 
+```{r}
+songs <- read.csv('../data/raw/song_features.csv', header = TRUE, sep = ',')
+```
 
 ```{r}
-songs <- read.csv('test_playlist.csv', header = TRUE, sep = ',')
+quantitative_variables_songs <- songs %>%
+  select(initial_user, danceability, energy, speechiness, acousticness, instrumentalness, liveness, valence, track.id)
+quantitative_variables_songs <- quantitative_variables_songs[complete.cases(quantitative_variables_songs), ] 
 ```
 
 
 ```{r}
-d <- daisy(songs) 
-resultados <- rep(0, 10)
-for (i in c(2,3,4,5,6,7,8,9,10))
-{
-  fit           <- kmeans(songs, i)
-  y_cluster     <- fit$cluster
-  sk            <- silhouette(y_cluster, d)
-  resultados[i] <- mean(sk[,3])
-}
-
-plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Numbero de clusters",ylab="Silueta")
-```
-
-```{r}
-library(fpc)
-fit_ch  <- kmeansruns(songs, krange = 1:10, criterion = "ch") 
-fit_ch$bestk
-```
-
-```{r}
-plot(1:10,fit_ch$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criterio Calinski-Harabasz")
-```
-
-```{r}
-# Compute k-means with k = 4
+# Compute k-means with k = 10
 set.seed(123)
-km.res <- kmeans(songs, 8, nstart = 25)
+km.res <- kmeans(quantitative_variables_songs[,c(2:8)], 10, nstart = 25)
 ```
 
 ```{r}
-print(km.res)
+aggregate(quantitative_variables_songs[,c(2:8)], by=list(cluster=km.res$cluster), mean)
 ```
 
 ```{r}
-aggregate(songs, by=list(cluster=km.res$cluster), mean)
+clustered_songs <- cbind(quantitative_variables_songs, cluster = km.res$cluster)
+head(clustered_songs)
 ```
 
 ```{r}
-dd <- cbind(songs, cluster = km.res$cluster)
-head(dd)
+df <- data.frame(table(clustered_songs$cluster,clustered_songs$initial_user))
+table(clustered_songs$cluster)
 ```
 
+
+```{r}
+df <- group_by(df, Var1) %>% 
+  mutate(percent = Freq/sum(Freq)) %>%
+  mutate(valid_frequence = case_when(percent < 0.04 ~ 'low',
+                                     percent > min(percent)*3 ~ 'high',
+                                     TRUE ~ 'valid'))
+
+df <- df %>%
+  group_by(Var1) %>% 
+  filter(!any(valid_frequence=='low')) %>%
+  filter(!any(valid_frequence=='high'))
+
+```
+
+```{r}
+list <- unique(df$Var1)
+
+clustered_songs <- clustered_songs %>%
+  mutate(label= if_else(cluster %in% list, 'yes', 'no'))
+
+```
+
+```{r}
+yes_songs <- clustered_songs %>%
+  filter(label=='yes')
+
+no_songs <- clustered_songs %>%
+  filter(label=='no')
+
+no_songs <- no_songs[sample(nrow(no_songs)),]
+
+no_songs <- no_songs[1:nrow(yes_songs),]
+
+labeled_songs <- bind_rows(yes_songs, no_songs)
+```
+
+```{r}
+write.csv(labeled_songs, '../data/processed/labeled_songs.csv')
+```

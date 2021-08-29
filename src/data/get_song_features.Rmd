@@ -96,25 +96,8 @@ all_data <- all_data %>%
 ```
 
 
-
-
-
-
-
 ```{r}
-user_playlists <- get_user_playlists('lauramuntaner',limit = 50)
-user_playlists$initial_user <- 'lauramuntaner'
-all_playlists <- rbind(all_playlists, user_playlists)
-  
-  # Filter playlists created by spotify
-all_playlists <- all_playlists %>% 
-  dplyr::filter(owner.display_name != 'Spotify')
-  
-    for (x in all_playlists$id)   {
-      tracks <- get_playlist_audio_features(playlist_uris=x)
-      song_features <- rbind(song_features, tracks)
-      
-  }
+write.csv(all_data, '../../data/raw/song_features.csv')
 
 ```
 
